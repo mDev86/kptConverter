@@ -1,0 +1,199 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:p="http://primefaces.org/ui">
+
+    <h:head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+        <style>
+            #header .header-stripe {
+                border-top: 1px solid #c8d7e6;
+                background-color: #e9f0f7;
+                border-bottom: 1px solid #c8d7e6;
+                padding-bottom: 230px;
+                margin-bottom: -230px;
+                text-align: center;
+            }
+
+            .content {
+                position: relative;
+                margin-top: 3% !important;
+                overflow: hidden;
+                padding-top: 15px;
+                margin-top: -1px;
+                border: 1px solid #c3cad1;
+                border-radius: 12px !important;
+               /* min-height: 400px;*/
+                 min-height: 200px;
+                /*margin-bottom: 20px;*/
+                background-color: #fff;
+                z-index: 1;
+            }
+            .content .recaptch{
+                position: absolute;
+                bottom: 5px;
+            }
+            .content div#panel{
+                margin-top: 6% !important;
+            }
+
+            .ui-panel-titlebar{
+                background: #59c594;
+            }
+            .linkfile{
+                color: #3c8dbc !important;
+                text-decoration: underline;
+            }
+            .ui-fileupload-simple .ui-fileupload-filename{
+                vertical-align: top;
+            }
+            .ui-fileupload-simple .ui-button{
+                height: 100%;
+            }
+            .divfileupload{
+                padding: 0px !important;
+                height: 50px;
+                border: 1px solid #d2d6de;
+                border-radius: 3px;
+            }
+            .chosebtn .ui-button .ui-button-text.ui-c {
+                margin-top: 7%;
+            }
+            .btnconvert{
+                height: 80%;
+                font-size: 2em !important;
+                margin-top: 1%;
+            }
+            .leftpadding-null{
+                padding-left: 0px;
+            }
+            .rightpadding-null{
+                padding-right: 0px;
+            }
+        </style>
+    </h:head>
+
+    <h:body>
+        <header id="header">
+            <div class="header-stripe">
+                <div id="motto" class="container"><h1 class="heading">КОНВЕРТЕР КАДАСТРОВЫХ ПЛАНОВ ТЕРРИТОРИЙ</h1>
+                    <div class="subheading">Преобразование КПТ файлов росреестра версии 10 в открытый формат GeoJSON
+                    <br/>
+                        Поддерживаются файлы формата .zip и размером до 1Мб
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <p:outputPanel id="cont">
+            <div class="ui-g">
+                <div class="content ui-lg-6 col-lg-offset-3">
+                    <!--<h:form enctype="multipart/form-data" accept-charset="UTF-8">
+                        <p:outputPanel>
+                            <p:captcha label="Captcha" language="ru" id="Captch"  />
+                            <p:fileUpload fileUploadListener="#{Main.handleFileUpload}" mode="advanced" id="fileup"
+                                          dragDropSupport="true" fileLimit="5"
+                                          update=":detailOtput:tex" sizeLimit="1000000"
+                                          allowTypes="/(\.|\/)(zip)$/" accept="application/zip"
+                                          multiple="true"
+                                          uploadLabel="Конвертировать" label="Выбрать" cancelLabel="Очистить"
+                                          invalidSizeMessage="Размер файла превышает установленный лимит"
+                                          invalidFileMessage="Неверный формат файла"
+                                          fileLimitMessage="Максимальное количество обрабатываемых файлов 5" oncomplete="console.log('reload'); grecaptcha.reset()" />
+                        </p:outputPanel>
+
+                        <p:outputPanel class="recaptch">
+
+                        </p:outputPanel>
+                      &lt;!&ndash;  <p:messages showDetail="true"/>
+
+                        <br />
+                        <p:commandButton value="Check" action="#{Main.submit}" ajax="false" icon="pi pi-check"/>&ndash;&gt;
+                    </h:form>-->
+
+                        <p:outputPanel>
+                            <h:form enctype="multipart/form-data" accept-charset="UTF-8">
+                                <p:messages showDetail="false"/>
+                                <div class="ui-g">
+                                    <div class="ui-lg-12 divfileupload">
+                                        <p:fileUpload value="#{Main.file}" mode="simple" skinSimple="true" label="Выбрать файл" allowTypes="/(\.|\/)(zip)$/" accept="application/zip"
+                                                      sizeLimit="1000000" styleClass="chosebtn" invalidSizeMessage="Размер файла превышает установленный лимит"/>
+                                    </div>
+                                </div>
+
+                                <div class="ui-g">
+                                    <div class="ui-lg-4 leftpadding-null">
+                                        <!--<p:captcha label="Captcha" language="ru" id="Captch"  requiredMessage="Пожалуйста подтвердите, что вы не робот" validatorMessage="Captcha: Значение невалидно" />-->
+                                    </div>
+                                    <div class="ui-lg-8 rightpadding-null">
+                                        <p:commandButton value="Конвертировать" action="#{Main.submit}" ajax="false" styleClass="btn btn-primary ui-lg-12 fa fa-fw fa-upload btnconvert" onclick="PF($('#progressBarIndeterminate').show())" />
+                                    </div>
+                                </div>
+                            </h:form>
+
+                            <div class="ui-g">
+                                <div class="ui-lg-12">
+                                    <p:progressBar id="progressBarIndeterminate" style="height:8px; display: none" mode="indeterminate"/>
+                                </div>
+                            </div>
+
+
+                            <div class="ui-g">
+                                <p:panel id="panel" styleClass="content ui-lg-12" header="Протокол обработки" rendered="#{Main.showProtocol}" >
+                                    <!--Файл Response-80-64801155.zip успешно обработан! <a class="linkfile" href="#">Нажмите сюда чтобы скачать файлы</a><br/>
+                                    В результате работы было обработано:
+                                        <ul>
+                                            <li>Кадастровых кварталов: 1</li>
+                                            <li>Участков: 132</li>
+                                            <li>Объектов капитального строительства: 56</li>
+                                            <li>Объектов без геометрии: 13</li>
+                                        </ul>-->
+
+                                    <!--<h:form id="detailOtput">-->
+                                        <p:outputPanel >
+                                            <h:outputText escape="false" id="tex" value="#{Main.status}"/>
+                                            <h:form rendered="#{Main.canDownload}">
+                                                <p:commandLink value="Нажмите сюда чтобы скачать файлы" ajax="false"  icon="pi pi-arrow-down" styleClass="linkfile">
+                                                    <p:fileDownload value="#{Main.downloadFile}" />
+                                                </p:commandLink>
+                                            </h:form>
+                                        </p:outputPanel>
+                                    <!--</h:form>-->
+                                </p:panel>
+                            </div>
+                        </p:outputPanel>
+
+                        <!--  <p:messages showDetail="true"/>
+                          <br />
+                          <p:commandButton value="Check" action="#{Main.submit}" ajax="false" icon="pi pi-check"/>-->
+
+
+                </div>
+            </div>
+
+            <!--<div class="ui-g">
+                <p:panel id="panel" styleClass="content ui-lg-6 col-lg-offset-3" header="Протокол обработки">
+                    &lt;!&ndash;Файл Response-80-64801155.zip успешно обработан! <a class="linkfile" href="#">Нажмите сюда чтобы скачать файлы</a><br/>
+                    В результате работы было обработано:
+                        <ul>
+                            <li>Кадастровых кварталов: 1</li>
+                            <li>Участков: 132</li>
+                            <li>Объектов капитального строительства: 56</li>
+                            <li>Объектов без геометрии: 13</li>
+                        </ul>&ndash;&gt;
+
+                    <h:form id="detailOtput">
+                        <p:commandButton value="Check" action="#{Main.submit}" ajax="true" icon="pi pi-check"  oncomplete="console.log('reload');grecaptcha.reset()"/>
+                        <p:outputPanel >
+                            <h:outputText escape="false" id="tex" value="#{Main.content}"/>
+                        </p:outputPanel>
+                    </h:form>
+                </p:panel>
+            </div>-->
+        </p:outputPanel>
+
+    </h:body>
+
+</html>
+
