@@ -1,6 +1,8 @@
 package converter.kpt;
 
+import j2html.tags.ContainerTag;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOUtils;
 import org.primefaces.event.FileUploadEvent;
 import org.primefaces.model.DefaultStreamedContent;
 import org.primefaces.model.StreamedContent;
@@ -23,16 +25,26 @@ import java.util.Enumeration;
 import java.util.Properties;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 import static j2html.TagCreator.*;
 
 @ManagedBean(name = "Main")
 @ViewScoped
 public class Main implements Serializable {
-    /*public Main() {
 
-    }*/
+    private final File UPLOAD_FOLDER = new File("C:\\kptinp\\input\\tmp");
+    private final File OUTPUT_ZIP_FOLDER = new File(UPLOAD_FOLDER,"!output_zip");
+    private final Boolean REMOVE_OUTPUT_ZIP = true;
+
+    public Main() {
+        if(!UPLOAD_FOLDER.exists()){
+            UPLOAD_FOLDER.mkdirs();
+        }
+        if(!OUTPUT_ZIP_FOLDER.exists()){
+            OUTPUT_ZIP_FOLDER.mkdirs();
+        }
+    }
 
     private boolean showProtocol = false;
     public boolean isShowProtocol() {
@@ -122,7 +134,7 @@ public class Main implements Serializable {
         try {
             String filenameExt = file.getFileName();
             if(!FilenameUtils.isExtension(filenameExt, "zip")){
-                hideProtokol();
+                hideProtocol();
                 FacesMessage msg = new FacesMessage(FacesMessage.SEVERITY_ERROR,"Ошибка обработки! Вы не прикрепили zip архив", "");
                 FacesContext.getCurrentInstance().addMessage(null, msg);
                 return;
@@ -130,7 +142,7 @@ public class Main implements Serializable {
             //String extension = FilenameUtils.getExtension(filenameExt).toLowerCase();
             String filename = FilenameUtils.removeExtension(filenameExt);
 
-            File newFolder = new File("C:\\kptinp\\input\\tmp", String.format("%d_%s", System.currentTimeMillis() / 1000, filename));
+            File newFolder = new File(UPLOAD_FOLDER, String.format("%d_%s", System.currentTimeMillis() / 1000, filename));
             int i = 0;
             while (newFolder.exists()) {
                 i++;
@@ -148,20 +160,33 @@ public class Main implements Serializable {
                 //TODO: Раскоментить
                 // sendEMail("Успешное преобразование КПТ","Файл преобразован");
 
-                // TODO: Раскоментить
-                // outFile = CompressFiles();
+                // TODO: Раскоментить с добавлением параметров
+//                 outFile = compressFiles();
+                 compressFiles(filename);
 
                 //TODO: Удалить после того как появится функция бэка
-                System.out.println(sourceFolder.getPath());
-                File[] outputFile = sourceFolder.listFiles((dir, name) -> FilenameUtils.isExtension(name, "xml"));
-                outFile = outputFile[0];
+                //System.out.println(sourceFolder.getPath());
+                //File[] outputFile = sourceFolder.listFiles((dir, name) -> FilenameUtils.isExtension(name, "xml"));
+                //outFile = outputFile[0];
 
                 /*String base64 = "",//Base64.getEncoder().encodeToString(FileUtils.readFileToByteArray(outputFile[0])),
                         name = outputFile[0].getName();*/
 
                 //TODO: Сформировать отображение информации в требуемом формате
+                int cntKadastr = 1,
+                        cntParcel = 131,
+                        cntOKS = 56,
+                        cntNotGeom = 13;
                 status += div(
-                        text("Архив " + filename + " успешно обработан! ")
+                        text("Архив " + filenameExt + " успешно обработан! "),
+                        br(),
+                        text("В результате работы было обработано:"),
+                        ul(
+                                li(String.format("Кадастровых кварталов: %d", cntKadastr)),
+                                li(String.format("Участков: %d", cntParcel)),
+                                li(String.format("Объектов капитального строительства: %d", cntOKS)),
+                                li(String.format("Объектов без геометрии: %d", cntNotGeom))
+                        )
                 ).render();
 
                 canDownload = true;
@@ -174,7 +199,7 @@ public class Main implements Serializable {
                 ).render();*/
                 FacesMessage msg = new FacesMessage(FacesMessage.SEVERITY_ERROR,"Ошибка обработки! " + e.getMessage(), "");
                 FacesContext.getCurrentInstance().addMessage(null, msg);
-                hideProtokol();
+                hideProtocol();
             }
 
         }catch (IOException e) {
@@ -186,7 +211,7 @@ public class Main implements Serializable {
         if(file != null) {
             handleFile(file);
         }
-        System.out.println("ajax");
+        //compressFiles();
     }
 
     private File Unzip(File pathZip) throws IOException {
@@ -206,7 +231,7 @@ public class Main implements Serializable {
                                 //    throw new IOException(String.format("Внутренний %s архив поврежден, невозможно извлечь файлы", zip.getName()), e);
             }
         }catch (IOException e){
-          //  hideProtokol();
+          //  hideProtocol();
             throw new IOException(String.format("%s %s поврежден, невозможно извлечь файлы", archive, archiveName), e);
         }
 
@@ -245,7 +270,7 @@ public class Main implements Serializable {
         }*/
 
         if(outputFolder.listFiles((dir, name) -> FilenameUtils.isExtension(name, "xml")).length == 0){
-           //hideProtokol();
+           //hideProtocol();
             throw new FileNotFoundException(String.format("В архиве %s отсутствует файл КПТ", pathZip.toPath().getFileName()));
         }
         return outputFolder;
@@ -279,8 +304,38 @@ public class Main implements Serializable {
      * Архивирование файлов полученыых от бэка
      * @return
      */
-    private File compressFiles(){
-        return null;
+    private void compressFiles(String outFileName){
+        downloadFileName = String.format("%s_geojson(%d).zip", outFileName, System.currentTimeMillis());
+        File zipOut = new File(OUTPUT_ZIP_FOLDER, downloadFileName);
+
+        try {
+            // Cоздание объекта ZipOutputStream из FileOutputStream
+            FileOutputStream fout = new FileOutputStream(zipOut);
+            ZipOutputStream zout = new ZipOutputStream(fout);
+            // Определение кодировки
+            //zout.setEncoding("CP866");
+
+            // Создание объекта File object архивируемой директории
+            //TODO: Добавление в цикле всех требуемых папок
+            File f1 = new File("C:\\kptinp\\input\\tmp\\!!testOutput\\123");
+            File f2 = new File("C:\\kptinp\\input\\tmp\\!!testOutput\\456");
+            addDirectory(zout, f1);
+            addDirectory(zout, f2);
+
+            // Закрываем ZipOutputStream
+            zout.close();
+
+            //Храним в памяти выходной архив для выгрузки пользователю
+            InputStream tmpIO = new FileInputStream(zipOut);
+            downloadFileBuffer = new ByteArrayInputStream(IOUtils.toByteArray(tmpIO));
+            tmpIO.close();
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+        if(REMOVE_OUTPUT_ZIP) {
+            zipOut.delete();
+        }
     }
 
     //TODO: Проверить оотправку на серваке
@@ -293,7 +348,7 @@ public class Main implements Serializable {
         try {
 
             Properties props = new Properties();
-            props.put("mail.smtp.host", "mail.uriit.ru");
+            props.put("mail.smtp.host", "mail2.uriit.ru");
             props.put("mail.smtp.port", 25);
 
             Session session = Session.getInstance(props);
@@ -316,17 +371,13 @@ public class Main implements Serializable {
 
 
     private StreamedContent downloadFile;
-    private File outFile = null;
+    private ByteArrayInputStream downloadFileBuffer;
+    private String downloadFileName;
 
     public StreamedContent getDownloadFile() {
-        if(outFile != null) {
-            InputStream stream = null;
-            try {
-                stream = new FileInputStream(outFile);
-                downloadFile = new DefaultStreamedContent(stream, "application/zip", outFile.getName());
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            }
+        if(downloadFileBuffer != null) {
+            downloadFile = new DefaultStreamedContent(downloadFileBuffer, "application/zip", downloadFileName);
+            downloadFileBuffer.reset();//Иначе при повторном скачивании ничего не возвращается
         }
         return downloadFile;
     }
@@ -335,9 +386,42 @@ public class Main implements Serializable {
     /**
      * Скрывает панель протокола обработки
      */
-    private void hideProtokol(){
+    private void hideProtocol(){
         showProtocol = false;
         canDownload = false;
+    }
+
+
+    private void addDirectory(ZipOutputStream zout, File fileSource)
+    {
+        try {
+            File[] files = fileSource.listFiles();
+//        System.out.println("Добавление директории <" + fileSource.getName() + ">");
+            for (int i = 0; i < files.length; i++) {
+                // Если file является директорией, то рекурсивно вызываем
+                // метод addDirectory
+                if (files[i].isDirectory()) {
+                    addDirectory(zout, files[i]);
+                    continue;
+                }
+//            System.out.println("Добавление файла <" + files[i].getName() + ">");
+
+                FileInputStream fis = new FileInputStream(files[i]);
+                zout.putNextEntry(new ZipEntry(files[i].getParentFile().getName() + "\\" + files[i].getName()));
+
+                byte[] buffer = new byte[4048];
+                int length;
+                while ((length = fis.read(buffer)) > 0)
+                    zout.write(buffer, 0, length);
+                // Закрываем ZipOutputStream и InputStream
+                zout.closeEntry();
+                fis.close();
+            }
+        }catch (Exception e){
+            System.out.println("Ошибка архивирования");
+            e.printStackTrace();
+        }
+
     }
 
 }

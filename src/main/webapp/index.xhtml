@@ -124,7 +124,7 @@
 
                                 <div class="ui-g">
                                     <div class="ui-lg-4 leftpadding-null">
-                                        <!--<p:captcha label="Captcha" language="ru" id="Captch"  requiredMessage="Пожалуйста подтвердите, что вы не робот" validatorMessage="Captcha: Значение невалидно" />-->
+                                        <p:captcha label="Captcha" language="ru" id="Captch"  requiredMessage="Пожалуйста подтвердите, что вы не робот" validatorMessage="Captcha: Значение невалидно" />
                                     </div>
                                     <div class="ui-lg-8 rightpadding-null">
                                         <p:commandButton value="Конвертировать" action="#{Main.submit}" ajax="false" styleClass="btn btn-primary ui-lg-12 fa fa-fw fa-upload btnconvert" onclick="PF($('#progressBarIndeterminate').show())" />
@@ -152,23 +152,17 @@
 
                                     <!--<h:form id="detailOtput">-->
                                         <p:outputPanel >
-                                            <h:outputText escape="false" id="tex" value="#{Main.status}"/>
                                             <h:form rendered="#{Main.canDownload}">
                                                 <p:commandLink value="Нажмите сюда чтобы скачать файлы" ajax="false"  icon="pi pi-arrow-down" styleClass="linkfile">
                                                     <p:fileDownload value="#{Main.downloadFile}" />
                                                 </p:commandLink>
                                             </h:form>
+                                            <h:outputText escape="false" id="tex" value="#{Main.status}"/>
                                         </p:outputPanel>
                                     <!--</h:form>-->
                                 </p:panel>
                             </div>
                         </p:outputPanel>
-
-                        <!--  <p:messages showDetail="true"/>
-                          <br />
-                          <p:commandButton value="Check" action="#{Main.submit}" ajax="false" icon="pi pi-check"/>-->
-
-
                 </div>
             </div>
 
