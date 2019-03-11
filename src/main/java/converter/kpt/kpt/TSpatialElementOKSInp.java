@@ -39,7 +39,7 @@ import java.util.List;
     "spelementUnit"
 })
 @XmlSeeAlso({
-    com.uriit.kptConverter.kpt.TEntitySpatialOKSInp.SpatialElement.class
+        converter.kpt.kpt.TEntitySpatialOKSInp.SpatialElement.class
 })
 public class TSpatialElementOKSInp {
 

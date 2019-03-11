@@ -39,10 +39,10 @@ import java.math.BigInteger;
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "tOrdinateOut")
 @XmlSeeAlso({
-    com.uriit.kptConverter.kpt.TSpelementUnitZUOut.Ordinate.class,
-    com.uriit.kptConverter.kpt.TSpelementUnitOKSOut.Ordinate.class,
-    com.uriit.kptConverter.kpt.TSpelementUnitLandOut.Ordinate.class,
-    com.uriit.kptConverter.kpt.TSpelementUnitLandKVOut.Ordinate.class
+        converter.kpt.kpt.TSpelementUnitZUOut.Ordinate.class,
+        converter.kpt.kpt.TSpelementUnitOKSOut.Ordinate.class,
+        converter.kpt.kpt.TSpelementUnitLandOut.Ordinate.class,
+        converter.kpt.kpt.TSpelementUnitLandKVOut.Ordinate.class
 })
 public class TOrdinateOut {
 

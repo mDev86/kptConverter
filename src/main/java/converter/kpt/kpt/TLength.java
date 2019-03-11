@@ -40,7 +40,7 @@ import java.math.BigDecimal;
     "definition"
 })
 @XmlSeeAlso({
-    com.uriit.kptConverter.kpt.TEntitySpatialBordersZUOut.Borders.Border.Edge.class
+        converter.kpt.kpt.TEntitySpatialBordersZUOut.Borders.Border.Edge.class
 })
 public class TLength {
 

@@ -1,13 +1,13 @@
 package converter.kpt;
 
-import com.uriit.kptConverter.info.CadastralBlockInfo;
-import com.uriit.kptConverter.info.FileInfo;
-import com.uriit.kptConverter.info.ResultInfo;
-import com.uriit.kptConverter.kpt.KPT;
-import com.uriit.kptConverter.kpt.TCadastralBlock;
-import com.uriit.kptConverter.kpt.TCoordSystem;
-import com.uriit.kptConverter.utils.FSHelper;
 import converter.kpt.exceptions.CustomException;
+import converter.kpt.info.CadastralBlockInfo;
+import converter.kpt.info.FileInfo;
+import converter.kpt.info.ResultInfo;
+import converter.kpt.kpt.KPT;
+import converter.kpt.kpt.TCadastralBlock;
+import converter.kpt.kpt.TCoordSystem;
+import converter.kpt.utils.FSHelper;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -19,16 +19,6 @@ import java.nio.file.Path;
 public class Converter {
 
     private static String destRoot = "C:\\Tmp";
-    //private static KPT kpt = null;
-
-/*    public Converter(String kptPath) throws JAXBException {
-
-        JAXBContext jaxbContext = JAXBContext.newInstance(KPT.class);
-        Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
-
-        this.kpt = (KPT) unmarshaller.unmarshal(new File(kptPath));
-
-    }*/
 
     public static ResultInfo convert(String inFolderStr) {
         ResultInfo result = new ResultInfo();

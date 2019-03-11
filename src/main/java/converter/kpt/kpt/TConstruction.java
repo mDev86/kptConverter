@@ -54,7 +54,7 @@ import javax.xml.bind.annotation.*;
     "entitySpatial"
 })
 @XmlSeeAlso({
-    com.uriit.kptConverter.kpt.TObjectsRealty.ObjectRealty.Construction.class
+        converter.kpt.kpt.TObjectsRealty.ObjectRealty.Construction.class
 })
 public class TConstruction {
 

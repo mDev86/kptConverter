@@ -37,8 +37,8 @@ import java.math.BigInteger;
 @XmlType(name = "tBorder")
 @XmlSeeAlso({
     TBorderAgreement.class,
-    com.uriit.kptConverter.kpt.TBordersInp.Border.class,
-    com.uriit.kptConverter.kpt.TEntitySpatialBordersZUOut.Borders.Border.class,
+        converter.kpt.kpt.TBordersInp.Border.class,
+        converter.kpt.kpt.TEntitySpatialBordersZUOut.Borders.Border.class,
     TBorderLand.class
 })
 public class TBorder {

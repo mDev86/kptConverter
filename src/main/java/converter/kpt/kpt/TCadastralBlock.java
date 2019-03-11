@@ -8,12 +8,12 @@
 
 package converter.kpt.kpt;
 
-import com.uriit.kptConverter.CRSEnum;
-import com.uriit.kptConverter.info.CadastralBlockInfo;
-import com.uriit.kptConverter.utils.Dictonary;
-import com.uriit.kptConverter.utils.FSHelper;
-import com.uriit.kptConverter.utils.Utils;
+import converter.kpt.CRSEnum;
 import converter.kpt.exceptions.CustomException;
+import converter.kpt.info.CadastralBlockInfo;
+import converter.kpt.utils.Dictonary;
+import converter.kpt.utils.FSHelper;
+import converter.kpt.utils.Utils;
 import mil.nga.sf.geojson.*;
 import mil.nga.sf.util.SFException;
 

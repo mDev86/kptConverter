@@ -39,9 +39,9 @@ import java.math.BigInteger;
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "tOrdinateInp")
 @XmlSeeAlso({
-    com.uriit.kptConverter.kpt.TSpelementUnitZUInp.Ordinate.class,
-    com.uriit.kptConverter.kpt.TSpelementUnitOKSInp.Ordinate.class,
-    com.uriit.kptConverter.kpt.TSpelementUnitLandInp.Ordinate.class,
+        converter.kpt.kpt.TSpelementUnitZUInp.Ordinate.class,
+        converter.kpt.kpt.TSpelementUnitOKSInp.Ordinate.class,
+        converter.kpt.kpt.TSpelementUnitLandInp.Ordinate.class,
     TOrdinate.class
 })
 public class TOrdinateInp {
