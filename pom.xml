@@ -25,6 +25,10 @@
       <name>Prime Repo</name>
       <url>http://repository.primefaces.org</url>
     </repository>
+    <repository>
+      <id>central</id>
+      <url>http://central.maven.org/maven2/</url>
+    </repository>
   </repositories>
 
   <dependencies>
@@ -105,6 +109,11 @@
       <version>1.12</version>
     </dependency>-->
 
+    <dependency>
+      <groupId>mil.nga.sf</groupId>
+      <artifactId>sf-geojson</artifactId>
+      <version>2.0.0</version>
+    </dependency>
   </dependencies>
 
   <build>
