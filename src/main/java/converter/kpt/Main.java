@@ -1,5 +1,8 @@
 package converter.kpt;
 
+import converter.kpt.info.CadastralBlockInfo;
+import converter.kpt.info.FileInfo;
+import converter.kpt.info.ResultInfo;
 import j2html.tags.ContainerTag;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
@@ -8,6 +11,8 @@ import org.primefaces.model.DefaultStreamedContent;
 import org.primefaces.model.StreamedContent;
 import org.primefaces.model.UploadedFile;
 
+import javax.annotation.PostConstruct;
+import javax.faces.application.Application;
 import javax.faces.application.FacesMessage;
 import javax.faces.bean.ManagedBean;
 import javax.faces.bean.ViewScoped;
@@ -18,10 +23,12 @@ import javax.mail.Session;
 import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
+import javax.servlet.http.HttpServletRequest;
 import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.Properties;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -33,16 +40,29 @@ import static j2html.TagCreator.*;
 @ViewScoped
 public class Main implements Serializable {
 
-    private final File UPLOAD_FOLDER = new File("C:\\kptinp\\input\\tmp");
+    private final File FOLDER_ROOT = new File("C:\\kptinp");
+    private final File FOLDER_DESTINATION_ROOT = new File(FOLDER_ROOT,"output");
+    private final File UPLOAD_FOLDER = new File(FOLDER_ROOT, "input");
     private final File OUTPUT_ZIP_FOLDER = new File(UPLOAD_FOLDER,"!output_zip");
-    private final Boolean REMOVE_OUTPUT_ZIP = true;
+
+    private final Boolean REMOVE_OUTPUT_ZIP = false;
 
     public Main() {
+        /*String clientIP = null;
+        HttpServletRequest context = (HttpServletRequest) FacesContext.getCurrentInstance().getExternalContext();
+        clientIP = context.getHeader("X-FORWARDED-FOR");
+        if(clientIP == null){
+            clientIP = context.getRemoteAddr();
+        }
+        System.out.println(clientIP);*/
         if(!UPLOAD_FOLDER.exists()){
             UPLOAD_FOLDER.mkdirs();
         }
         if(!OUTPUT_ZIP_FOLDER.exists()){
             OUTPUT_ZIP_FOLDER.mkdirs();
+        }
+        if(!FOLDER_DESTINATION_ROOT.exists()){
+            FOLDER_DESTINATION_ROOT.mkdirs();
         }
     }
 
@@ -155,48 +175,21 @@ public class Main implements Serializable {
             try {
                 File sourceFolder = Unzip(newFile);
 
-                //TODO: Ввызов бэка с передачей sourceFolder
+                //Ввызов непосредственно конвертера с передачей sourceFolder
+                ResultInfo resultInfo = Converter.convert(sourceFolder.getPath(), FOLDER_DESTINATION_ROOT);
 
                 //TODO: Раскоментить
                 // sendEMail("Успешное преобразование КПТ","Файл преобразован");
 
-                // TODO: Раскоментить с добавлением параметров
-//                 outFile = compressFiles();
-                 compressFiles(filename);
+                //Архивация папок со сгенерированными файлами
+                compressFiles(filename, resultInfo.getFilesInfo());
 
-                //TODO: Удалить после того как появится функция бэка
-                //System.out.println(sourceFolder.getPath());
-                //File[] outputFile = sourceFolder.listFiles((dir, name) -> FilenameUtils.isExtension(name, "xml"));
-                //outFile = outputFile[0];
-
-                /*String base64 = "",//Base64.getEncoder().encodeToString(FileUtils.readFileToByteArray(outputFile[0])),
-                        name = outputFile[0].getName();*/
-
-                //TODO: Сформировать отображение информации в требуемом формате
-                int cntKadastr = 1,
-                        cntParcel = 131,
-                        cntOKS = 56,
-                        cntNotGeom = 13;
-                status += div(
-                        text("Архив " + filenameExt + " успешно обработан! "),
-                        br(),
-                        text("В результате работы было обработано:"),
-                        ul(
-                                li(String.format("Кадастровых кварталов: %d", cntKadastr)),
-                                li(String.format("Участков: %d", cntParcel)),
-                                li(String.format("Объектов капитального строительства: %d", cntOKS)),
-                                li(String.format("Объектов без геометрии: %d", cntNotGeom))
-                        )
-                ).render();
+                //Формирование отображения информации протокола обработки в требуемом формате
+                status = generateProtocol(resultInfo, filenameExt);
 
                 canDownload = true;
                 showProtocol = true;
-            }/*catch (FileNotFoundException e){
-
-            }*/ catch (IOException e) {
-                /*status += div(
-                        text("Ошибка обработки! " + e.getMessage())
-                ).render();*/
+            }catch (IOException e) {
                 FacesMessage msg = new FacesMessage(FacesMessage.SEVERITY_ERROR,"Ошибка обработки! " + e.getMessage(), "");
                 FacesContext.getCurrentInstance().addMessage(null, msg);
                 hideProtocol();
@@ -304,7 +297,7 @@ public class Main implements Serializable {
      * Архивирование файлов полученыых от бэка
      * @return
      */
-    private void compressFiles(String outFileName){
+    private void compressFiles(String outFileName, List<FileInfo> convertInfo){
         downloadFileName = String.format("%s_geojson(%d).zip", outFileName, System.currentTimeMillis());
         File zipOut = new File(OUTPUT_ZIP_FOLDER, downloadFileName);
 
@@ -315,12 +308,15 @@ public class Main implements Serializable {
             // Определение кодировки
             //zout.setEncoding("CP866");
 
-            // Создание объекта File object архивируемой директории
-            //TODO: Добавление в цикле всех требуемых папок
-            File f1 = new File("C:\\kptinp\\input\\tmp\\!!testOutput\\123");
-            File f2 = new File("C:\\kptinp\\input\\tmp\\!!testOutput\\456");
-            addDirectory(zout, f1);
-            addDirectory(zout, f2);
+            // Создание объекта File object архивируемой директории (Добавление в цикле всех требуемых папок)
+            for(FileInfo file: convertInfo){
+                if(file.isConverted()) {
+                    for(CadastralBlockInfo block: file.getCadastralBlocks()){
+                        File f1 = new File(block.getExportFolder());
+                        addDirectory(zout, f1);
+                    }
+                }
+            }
 
             // Закрываем ZipOutputStream
             zout.close();
@@ -422,6 +418,50 @@ public class Main implements Serializable {
             e.printStackTrace();
         }
 
+    }
+
+    private String generateProtocol(ResultInfo resultInfo, String filenameExt){
+        return
+            div(
+                text("Архив " + filenameExt + " успешно обработан! "),
+                br(),
+                text("В результате работы было успешно обработано файлов: " + resultInfo.getConvertedFilesCnt()),
+                ul(
+                        li(String.format("Кадастровых кварталов: %d", resultInfo.getStatistics().getCadastralBlocksCnt())),
+                        li(String.format("Участков: %d", resultInfo.getStatistics().getParcelsCnt())),
+                        li(String.format("Участков с геометрией: %d", resultInfo.getStatistics().getParcelsWGeoCnt())),
+                        li(String.format("Участков без геометрии: %d", resultInfo.getStatistics().getParcelsCnt() - resultInfo.getStatistics().getParcelsWGeoCnt())),
+                        li(String.format("Объектов капитального строительства: %d", resultInfo.getStatistics().getObjectsRealitiesCnt())),
+                        li(String.format("Объектов капитального строительства с геометрией: %d", resultInfo.getStatistics().getObjectsRealitiesWGeoCnt())),
+                        li(String.format("Объектов капитального строительства без геометрии: %d", resultInfo.getStatistics().getObjectsRealitiesCnt() - resultInfo.getStatistics().getObjectsRealitiesWGeoCnt()))
+                ),
+                text("Кол-во файлов с ошибками: " + resultInfo.getErrorFilesCnt()),
+                br(), br(),
+                text("========================Подробный отчет================================"),
+                br(),
+                each(resultInfo.getFilesInfo(), files ->
+                        div(
+                                text("Файл " + files.getFileName() + iffElse(files.isConverted(), " успешно обработан"," не обработан")), br(),
+                                iffElse(files.isConverted(),
+                                        each(files.getCadastralBlocks(), block ->
+                                                div(text("Найден кадастровый квартал: " + block.getCadastralNumber() + ", содержащий:"),
+                                                        ul(
+                                                                li(String.format("Участков: %d", block.getStatistics().getParcelsCnt())),
+                                                                li(String.format("Участков с геометрией: %d", block.getStatistics().getParcelsWGeoCnt())),
+                                                                li(String.format("Участков без геометрии: %d", block.getStatistics().getParcelsCnt()-block.getStatistics().getParcelsWGeoCnt())),
+                                                                li(String.format("Объектов капитального строительства: %d", block.getStatistics().getObjectsRealitiesCnt())),
+                                                                li(String.format("Объектов капитального строительства с геометрией: %d", block.getStatistics().getObjectsRealitiesWGeoCnt())),
+                                                                li(String.format("Объектов капитального строительства без геометрии: %d", block.getStatistics().getObjectsRealitiesCnt()-block.getStatistics().getObjectsRealitiesWGeoCnt()))
+                                                        ),
+                                                        iff(!block.getErrorMsg().isEmpty(), text("Предупреждение: " + block.getErrorMsg()))
+                                                )
+                                        ),
+                                        div("Ошибка: " + files.getErrorMsg())
+                                ),
+                                text("-------------------------------------------------------------------------------------------------------------------")
+                        )
+                )
+            ).render();
     }
 
 }

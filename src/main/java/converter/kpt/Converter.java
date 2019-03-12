@@ -18,9 +18,10 @@ import java.nio.file.Path;
 
 public class Converter {
 
-    private static String destRoot = "C:\\Tmp";
+    //private static String destRoot = "C:\\kptinp\\output";
+    private static String destRoot;
 
-    public static ResultInfo convert(String inFolderStr) {
+    public static ResultInfo convert(String inFolderStr, File folderRoot) {
         ResultInfo result = new ResultInfo();
         File inFolder = new File(inFolderStr);
 
@@ -28,6 +29,14 @@ public class Converter {
             result.setErrorMsg("Указанный путь " + inFolderStr + " не является папкой");
             return result;
         }
+
+        if(!folderRoot.isDirectory()){
+            result.setErrorMsg("Указанный путь " + folderRoot.getPath() + " не является папкой");
+            return result;
+        }else{
+            destRoot = folderRoot.getPath();
+        }
+
 
         File[] files = inFolder.listFiles(new FilenameFilter() {
             @Override
