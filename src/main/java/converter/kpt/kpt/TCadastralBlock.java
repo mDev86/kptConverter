@@ -20,10 +20,7 @@ import mil.nga.sf.util.SFException;
 import javax.xml.bind.annotation.*;
 import java.io.File;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 /**
@@ -1651,7 +1648,7 @@ public class TCadastralBlock {
         return crsMap;
     }*/
 
-    @XmlTransient
+/*    @XmlTransient
     private CRSEnum crsEnum = null;
 
     @XmlTransient
@@ -1662,12 +1659,39 @@ public class TCadastralBlock {
         }
 
         return crsEnum;
-    }
+    }*/
 
     @XmlTransient
     private Path desstination;
     @XmlTransient
     private CadastralBlockInfo cbInfo;
+
+    @XmlTransient
+    private Map<TCoordSystem, FeatureCollection> featureCollections = null;
+
+    @XmlTransient
+    public Map<TCoordSystem, FeatureCollection> getFeatureColletions() {
+        if (featureCollections == null) {
+            featureCollections = new HashMap<TCoordSystem, FeatureCollection>();
+
+            for (TCoordSystem cs : getCoordSystems().getCoordSystem()) {
+                CRSEnum crsEnum = CRSEnum.get(cs.getName());
+                if (crsEnum == null) {
+                    cbInfo.setErrorMsg("Для координатной системы " + cs.getName() + " отсутсвуют коэфициенты пересчета, объекты с этой КС будут проигнорированны");
+                } else {
+                    FeatureCollection fc = new FeatureCollection();
+                    fc.setCrs(crsEnum.getCRS());
+                    featureCollections.put(cs, fc);
+                }
+            }
+        } else {
+            for(Map.Entry<TCoordSystem, FeatureCollection> e: featureCollections.entrySet()) {
+                e.getValue().getFeatures().clear();
+            }
+        }
+
+        return featureCollections;
+    }
 
     public void saveGeoJSON(Path desstination, CadastralBlockInfo cbInfo) throws CustomException {
         this.desstination = desstination;
@@ -1675,8 +1699,7 @@ public class TCadastralBlock {
         cbInfo.setCadastralNumber(getCadastralNumber());
         cbInfo.setExportFolder(desstination.toString());
 
-        FeatureCollection fc = new FeatureCollection();
-        fc.setCrs(getCRSEnum().getCRS());
+        FeatureCollection fc = getFeatureColletions().get(getSpatialData().getEntitySpatial().entSys);
         Feature f = new Feature();
 
         List<List<Position>> rings = new ArrayList<List<Position>>();
@@ -1710,16 +1733,19 @@ public class TCadastralBlock {
         f.setProperties(prop);
         f.setId(getCadastralNumber());
 
-        fc.addFeature(f);
-
-        FSHelper.saveTextFile(new File(desstination.toString(), "CadastralBlock.geojson"), FeatureConverter.toStringValue(fc));
+        if (fc != null) {
+            fc.addFeature(f);
+            FSHelper.saveTextFile(new File(desstination.toString(), getCadastralNumber().replace(":", "_") + "__CadastralBlock.geojson"), FeatureConverter.toStringValue(fc));
+        } else {
+            cbInfo.getStatistics().incCadastralBlocksCnt(-1);
+        }
 
         saveParcelsGJ();
+        saveObjectRealityGJ();
     }
 
     private void saveParcelsGJ() throws CustomException {
-        FeatureCollection fc = new FeatureCollection();
-        fc.setCrs(getCRSEnum().getCRS());
+        Map<TCoordSystem, FeatureCollection> fcs = getFeatureColletions();
 
         for (TParcel parcel :getParcels().getParcel()) {
             cbInfo.getStatistics().incParcelsCnt(1);
@@ -1728,7 +1754,11 @@ public class TCadastralBlock {
 
             List<List<Position>> rings = new ArrayList<List<Position>>();
 
+            FeatureCollection fc = null;
+
             if (parcel.getEntitySpatial() != null) {
+                fc = fcs.get(parcel.getEntitySpatial().entSys);
+
                 for (TSpatialElementZUOut se : parcel.getEntitySpatial().getSpatialElement()) {
                     List<Position> positions = new ArrayList<Position>();
                     for (TSpelementUnitZUOut u : se.getSpelementUnit()) {
@@ -1738,6 +1768,8 @@ public class TCadastralBlock {
                 }
 
                 cbInfo.getStatistics().incParcelsWGeoCnt(1);
+            } else {
+                fc = fcs.entrySet().iterator().next().getValue();
             }
 
             Polygon p = null;
@@ -1773,9 +1805,94 @@ public class TCadastralBlock {
             feature.setGeometry(p);
             feature.setProperties(prop);
 
-            fc.addFeature(feature);
+            if (fc != null)
+                fc.addFeature(feature);
         }
 
-        FSHelper.saveTextFile(new File(desstination.toString(), "Parcels.geojson"), FeatureConverter.toStringValue(fc));
+        for (Map.Entry<TCoordSystem, FeatureCollection> entry: fcs.entrySet()) {
+            if (entry.getValue().getFeatures().size() > 0) {
+                FSHelper.saveTextFile(new File(desstination.toString(), getCadastralNumber().replace(":", "_") + "__Parcels_" +
+                        entry.getKey().getName() + ".geojson"), FeatureConverter.toStringValue(entry.getValue()));
+            }
+        }
+    }
+
+    private void saveObjectRealityGJ() throws CustomException {
+        Map<TCoordSystem, FeatureCollection> fcs = getFeatureColletions();
+
+        if (getObjectsRealty() != null) {
+            for (TObjectsRealty.ObjectRealty or : getObjectsRealty().getObjectRealty()) {
+                cbInfo.getStatistics().incObjectsRealityCnt(1);
+                Feature feature = new Feature();
+                feature.setId(or.getCadastralNumber());
+
+                List<List<Position>> rings = new ArrayList<List<Position>>();
+
+                FeatureCollection fc = null;
+                if (or.getEntitySpatial() != null) {
+                    fc = fcs.get(or.getEntitySpatial().entSys);
+
+                    for (TSpatialElementOKSOut se : or.getEntitySpatial().getSpatialElement()) {
+                        List<Position> positions = new ArrayList<Position>();
+                        for (TSpelementUnitOKSOut u : se.getSpelementUnit()) {
+                            positions.add(new Position(u.getOrdinate().getY().doubleValue(), u.getOrdinate().getX().doubleValue()));
+                        }
+                        rings.add(positions);
+                    }
+
+                    cbInfo.getStatistics().incObjectsRealitiesWGeoCnt(1);
+                } else {
+                    fc = fcs.entrySet().iterator().next().getValue();
+                }
+
+                Polygon p = null;
+                try {
+                    p = new Polygon(rings);
+                } catch (SFException ex) {
+                    cbInfo.setErrorMsg(or.getCadastralNumber() + " ошибка создания полигона. " + ex.getMessage());
+                }
+
+                Map<String, Object> prop = new LinkedHashMap<String, Object>();
+                prop.put("Кадастровый номер", or.getCadastralNumber());
+                prop.put("Тип", Dictonary.getReality(or.getObjectType()));
+                prop.put("Назначение", Dictonary.getAssBuilding(or.getAssignationBuilding()));
+
+                prop.put("Статус", Dictonary.getState(or.getState()));
+
+                if (or.getAddress() != null) {
+                    prop.put("Адрес", or.getAddress().getNote());
+                }
+
+                if (or.getCadastralCost() != null) {
+                    prop.put("Кадастровая стоимость", or.getCadastralCost().getValue());
+                    prop.put("Кадастровая стоимость, ед.изм.", Dictonary.getUnits(or.getCadastralCost().getUnit()));
+                }
+
+                if (or.getArea() != null) {
+                    prop.put("Площадь", or.getArea());
+                    prop.put("Площадь, ед.изм.", "Квадратный метр");
+                }
+
+                TKeyParameters keyParameters = or.getKeyParameters();
+                if (keyParameters != null && keyParameters.getKeyParameter() != null) {
+                    for (TKeyParameter param: keyParameters.getKeyParameter()) {
+                        prop.put(Dictonary.getTypeParameter(param.getType()), param.getValue());
+                    }
+                }
+
+                feature.setGeometry(p);
+                feature.setProperties(prop);
+
+                if (fc != null)
+                    fc.addFeature(feature);
+            }
+        }
+
+        for (Map.Entry<TCoordSystem, FeatureCollection> entry: fcs.entrySet()) {
+            if (entry.getValue().getFeatures().size() > 0) {
+                FSHelper.saveTextFile(new File(desstination.toString(), getCadastralNumber().replace(":", "_") + "__OKS_" +
+                        entry.getKey().getName() + ".geojson"), FeatureConverter.toStringValue(entry.getValue()));
+            }
+        }
     }
 }

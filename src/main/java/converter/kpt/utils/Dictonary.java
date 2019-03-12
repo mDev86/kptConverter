@@ -9,6 +9,9 @@ public class Dictonary {
     private static Map<String, String> state = new HashMap<String, String>();
     private static Map<String, String> categories = new HashMap<String, String>();
     private static Map<String, String> utilizations = new HashMap<String, String>();
+    private static Map<String, String> assBuilding = new HashMap<String, String>();
+    private static Map<String, String> typeParameter = new HashMap<String, String>();
+
 
     static {
         units.put("003f", "Миллиметр");
@@ -275,6 +278,17 @@ public class Dictonary {
         utilizations.put("146003000000", "Для размещения иных сооружений, расположенных на водных объектах");
         utilizations.put("147000000000", "Земли запаса (неиспользуемые)");
 
+        assBuilding.put("204001000000", "Нежилое здание");
+        assBuilding.put("204002000000", "Жилой дом");
+        assBuilding.put("204003000000", "Многоквартирный дом");
+
+        typeParameter.put("01", "Протяженность");
+        typeParameter.put("02", "Глубина");
+        typeParameter.put("03", "Объем");
+        typeParameter.put("04", "Высота");
+        typeParameter.put("05", "Площадь");
+        typeParameter.put("06", "Площадь застройки");
+        typeParameter.put("07", "Глубина залегания");
     }
 
     public static String getUnits(String code) {
@@ -295,5 +309,13 @@ public class Dictonary {
 
     public static String getUtilization(String code) {
         return utilizations.getOrDefault(code, "UNKNOWN");
+    }
+
+    public static String getAssBuilding(String code) {
+        return assBuilding.getOrDefault(code, "UNKNOWN");
+    }
+
+    public static String getTypeParameter(String code) {
+        return typeParameter.getOrDefault(code, "UNKNOWN");
     }
 }

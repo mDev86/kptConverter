@@ -12,6 +12,9 @@ import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlType;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -273,6 +276,68 @@ public class TObjectsRealty {
 
         }
 
-    }
+        private Object getOKS() {
+            if (building != null)
+                return building;
 
+            if (construction != null)
+                return construction;
+
+            if (uncompleted != null)
+                return uncompleted;
+
+            return null;
+        }
+
+        private Object getPropertyValue(String propertyName) {
+            Object oks = getOKS();
+            if (oks == null)
+                return null;
+            try {
+                Method method = oks.getClass().getMethod(propertyName, null);
+                return method.invoke(oks);
+            } catch (Exception e) {
+
+            }
+
+            return null;
+        }
+
+
+        public String getCadastralNumber() {
+            return (String) getPropertyValue("getCadastralNumber");
+        }
+
+        public TEntitySpatialOKSOut getEntitySpatial() {
+            return (TEntitySpatialOKSOut) getPropertyValue("getEntitySpatial");
+        }
+
+        public String getObjectType() {
+            return (String) getPropertyValue("getObjectType");
+        }
+
+        public String getAssignationBuilding() {
+            return (String) getPropertyValue("getAssignationBuilding");
+        }
+
+        public String getState() {
+            return (String) getPropertyValue("getState");
+        }
+
+        public TAddressOut getAddress() {
+            return (TAddressOut) getPropertyValue("getAddress");
+        }
+
+        public TCadastralCost getCadastralCost() {
+            return (TCadastralCost) getPropertyValue("getCadastralCost");
+        }
+
+        public BigDecimal getArea() {
+            return (BigDecimal) getPropertyValue("getArea");
+        }
+
+        public TKeyParameters getKeyParameters() {
+            return (TKeyParameters) getPropertyValue("getKeyParameters");
+        }
+    }
 }

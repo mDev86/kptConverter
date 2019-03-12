@@ -77,23 +77,14 @@ public class Converter {
             throw new CustomException("Ошибка серилизации xml файла " + kptPath, ex);
         }
 
-        //Цикл по кадастравым кварталам, проверяем кол-во координатных систем и наличие коэфициентов персчета
+        //Цикл по кадастравым кварталам, проверяем кол-во координатных систем
         for(TCadastralBlock cb: kpt.getCadastralBlocks().getCadastralBlock()) {
-            if (cb.getCoordSystems().getCoordSystem().size() > 1) {
-                throw new CustomException("В квартале " + cb.getCadastralNumber() + " указанно больше 1 системы координат");
-            }
             if (cb.getCoordSystems().getCoordSystem().size() == 0) {
                 throw new CustomException("В квартале " + cb.getCadastralNumber() + " не указанна система координат");
             }
-            TCoordSystem cs = cb.getCoordSystems().getCoordSystem().get(0);
-
-            if (CRSEnum.get(cs.getName()) == null) {
-                //todo: Warning or nah
-                throw new CustomException("Для координатной системы " + cs.getName() + " отсутсвуют коэфициенты пересчета");
-            }
         }
 
-        //Цикл по кадастравым кварталам, сохраняем кадастровый план
+        //Цикл по кадастравым кварталам, сохраняем кадастровый план, участки, ОКС
         for(TCadastralBlock cb: kpt.getCadastralBlocks().getCadastralBlock()) {
             CadastralBlockInfo cbInfo = new CadastralBlockInfo();
             cbInfo.getStatistics().incCadastralBlocksCnt(1);
