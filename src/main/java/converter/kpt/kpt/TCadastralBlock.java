@@ -14,13 +14,18 @@ import converter.kpt.info.CadastralBlockInfo;
 import converter.kpt.utils.Dictonary;
 import converter.kpt.utils.FSHelper;
 import converter.kpt.utils.Utils;
+import mil.nga.sf.GeometryType;
 import mil.nga.sf.geojson.*;
 import mil.nga.sf.util.SFException;
 
 import javax.xml.bind.annotation.*;
 import java.io.File;
+import java.io.Serializable;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 
 /**
@@ -1712,6 +1717,8 @@ public class TCadastralBlock {
             }
         }
 
+
+
         Polygon p = new Polygon(rings);
 
         Map<String, Object> prop = new LinkedHashMap<String, Object>();
@@ -1772,6 +1779,7 @@ public class TCadastralBlock {
                 fc = fcs.entrySet().iterator().next().getValue();
             }
 
+
             Polygon p = null;
             try {
                 p = new Polygon(rings);
@@ -1828,7 +1836,9 @@ public class TCadastralBlock {
 
                 List<List<Position>> rings = new ArrayList<List<Position>>();
 
+                Boolean IsPolygon = true;
                 FeatureCollection fc = null;
+                //FeatureCollection fc = new FeatureCollection();
                 if (or.getEntitySpatial() != null) {
                     fc = fcs.get(or.getEntitySpatial().entSys);
 
@@ -1840,14 +1850,23 @@ public class TCadastralBlock {
                         rings.add(positions);
                     }
 
+                    if(!rings.isEmpty()) {
+                        List<Position> tmpPos = rings.get(0);
+                        if (!tmpPos.isEmpty() && !tmpPos.get(0).getX().equals(tmpPos.get(tmpPos.size() - 1).getX())
+                                && !tmpPos.get(0).getY().equals(tmpPos.get(tmpPos.size() - 1).getY())) {
+                            IsPolygon = false;
+                        }
+                    }
+
                     cbInfo.getStatistics().incObjectsRealitiesWGeoCnt(1);
                 } else {
                     fc = fcs.entrySet().iterator().next().getValue();
                 }
 
-                Polygon p = null;
+                //Polygon p = null;
+                Geometry p = null;
                 try {
-                    p = new Polygon(rings);
+                    p = IsPolygon ? new Polygon(rings) : new MultiLineString(rings);
                 } catch (SFException ex) {
                     cbInfo.setErrorMsg(or.getCadastralNumber() + " ошибка создания полигона. " + ex.getMessage());
                 }
@@ -1890,8 +1909,32 @@ public class TCadastralBlock {
 
         for (Map.Entry<TCoordSystem, FeatureCollection> entry: fcs.entrySet()) {
             if (entry.getValue().getFeatures().size() > 0) {
-                FSHelper.saveTextFile(new File(desstination.toString(), getCadastralNumber().replace(":", "_") + "__OKS_" +
-                        entry.getKey().getName() + ".geojson"), FeatureConverter.toStringValue(entry.getValue()));
+
+
+                FeatureCollection Polygons = FeatureConverter.toFeatureCollection(entry.getValue());
+                List<Feature> PolygonFeatures = StreamSupport.stream(entry.getValue().spliterator(), false)
+                        .filter(it -> it.getGeometryType() == GeometryType.POLYGON)
+                        .collect(Collectors.toList());
+                Polygons.setFeatures(PolygonFeatures);
+
+
+                FeatureCollection Lines = FeatureConverter.toFeatureCollection(entry.getValue());
+                List<Feature> LinesFeatures = StreamSupport.stream(entry.getValue().spliterator(), false)
+                        .filter(it -> it.getGeometryType() == GeometryType.MULTILINESTRING)
+                        .collect(Collectors.toList());
+                Lines.setFeatures(LinesFeatures);
+
+
+                if(!Polygons.getFeatures().isEmpty())
+                    FSHelper.saveTextFile(new File(desstination.toString(), getCadastralNumber().replace(":", "_") + "__OKS_Polygon_" +
+                            entry.getKey().getName() + ".geojson"), FeatureConverter.toStringValue(Polygons));
+
+                if(!Lines.getFeatures().isEmpty())
+                    FSHelper.saveTextFile(new File(desstination.toString(), getCadastralNumber().replace(":", "_") + "__OKS_Line_" +
+                            entry.getKey().getName() + ".geojson"), FeatureConverter.toStringValue(Lines));
+
+                /*FSHelper.saveTextFile(new File(desstination.toString(), getCadastralNumber().replace(":", "_") + "__OKS_Polygon_" +
+                        entry.getKey().getName() + ".geojson"), FeatureConverter.toStringValue(entry.getValue()));*/
             }
         }
     }

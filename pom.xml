@@ -19,6 +19,25 @@
     <maven.compiler.target>1.8</maven.compiler.target>
   </properties>
 
+  <!--<profiles>
+    <profile>
+      <id>prod</id>
+      <properties>
+        <folder.root>~\kptconverter</folder.root>
+      </properties>
+    </profile>
+    <profile>
+      <id>local</id>
+      <properties>
+        <folder.root>C:\kptinp</folder.root>
+      </properties>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+    </profile>
+  </profiles>-->
+
+
   <repositories>
     <repository>
       <id>prime-repo</id>

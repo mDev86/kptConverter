@@ -16,6 +16,10 @@
                 text-align: center;
             }
 
+            body{
+                overflow: auto;
+                min-width: 940px;
+            }
             .content {
                 position: relative;
                 margin-top: 3% !important;
@@ -29,6 +33,7 @@
                 /*margin-bottom: 20px;*/
                 background-color: #fff;
                 z-index: 1;
+                min-width: 940px;
             }
             .content .recaptch{
                 position: absolute;
@@ -88,7 +93,7 @@
 
         <p:outputPanel id="cont">
             <div class="ui-g">
-                <div class="content ui-lg-6 col-lg-offset-3">
+                <div class="content ui-g-6 col-g-offset-3">
                     <!--<h:form enctype="multipart/form-data" accept-charset="UTF-8">
                         <p:outputPanel>
                             <p:captcha label="Captcha" language="ru" id="Captch"  />
@@ -116,31 +121,31 @@
                             <h:form enctype="multipart/form-data" accept-charset="UTF-8">
                                 <p:messages showDetail="false"/>
                                 <div class="ui-g">
-                                    <div class="ui-lg-12 divfileupload">
+                                    <div class="ui-g-12 divfileupload">
                                         <p:fileUpload value="#{Main.file}" mode="simple" skinSimple="true" label="Выбрать файл" allowTypes="/(\.|\/)(zip)$/" accept="application/zip"
                                                       sizeLimit="1000000" styleClass="chosebtn" invalidSizeMessage="Размер файла превышает установленный лимит"/>
                                     </div>
                                 </div>
 
                                 <div class="ui-g">
-                                    <div class="ui-lg-4 leftpadding-null">
+                                    <div class="ui-g-4 leftpadding-null">
                                         <p:captcha label="Captcha" language="ru" id="Captch"  requiredMessage="Пожалуйста подтвердите, что вы не робот" validatorMessage="Captcha: Значение невалидно" />
                                     </div>
-                                    <div class="ui-lg-8 rightpadding-null">
-                                        <p:commandButton value="Конвертировать" action="#{Main.submit}" ajax="false" styleClass="btn btn-primary ui-lg-12 fa fa-fw fa-upload btnconvert" onclick="PF($('#progressBarIndeterminate').show())" />
+                                    <div class="ui-g-8 rightpadding-null">
+                                        <p:commandButton value="Конвертировать" action="#{Main.submit}" ajax="false" styleClass="btn btn-primary ui-g-12 fa fa-upload btnconvert" onclick="PF($('#progressBarIndeterminate').show())" />
                                     </div>
                                 </div>
                             </h:form>
 
                             <div class="ui-g">
-                                <div class="ui-lg-12">
+                                <div class="ui-g-12">
                                     <p:progressBar id="progressBarIndeterminate" style="height:8px; display: none" mode="indeterminate"/>
                                 </div>
                             </div>
 
 
                             <div class="ui-g">
-                                <p:panel id="panel" styleClass="content ui-lg-12" header="Протокол обработки" rendered="#{Main.showProtocol}" >
+                                <p:panel id="panel" styleClass="content ui-g-12" header="Протокол обработки" rendered="#{Main.showProtocol}" >
                                     <!--Файл Response-80-64801155.zip успешно обработан! <a class="linkfile" href="#">Нажмите сюда чтобы скачать файлы</a><br/>
                                     В результате работы было обработано:
                                         <ul>
