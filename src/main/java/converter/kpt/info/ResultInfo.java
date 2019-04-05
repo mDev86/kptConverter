@@ -9,6 +9,9 @@ public class ResultInfo extends Info {
     private int errorFilesCnt = 0;
     private List<FileInfo> filesInfo = new ArrayList<FileInfo>();
 
+    //Данные для отображения на карте на сайте
+    private List<CadastralBlockContent> content = new ArrayList<>();
+
     public int getConvertedFilesCnt() {
         return convertedFilesCnt;
     }
@@ -23,6 +26,14 @@ public class ResultInfo extends Info {
 
     public void incErrorFilesCnt(int errorFilesCnt) {
         this.errorFilesCnt += errorFilesCnt;
+    }
+
+    public List<CadastralBlockContent> getContent() {
+        return content;
+    }
+
+    public void setContent(List<CadastralBlockContent> content) {
+        this.content = content;
     }
 
     //todo перестчет один раз

@@ -1,19 +1,25 @@
 package converter.kpt;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import converter.kpt.info.DownloadFile;
+import converter.kpt.info.InfoIP;
 import converter.kpt.info.ResultInfo;
 import converter.kpt.utils.Archiver;
 import converter.kpt.utils.Utils;
 import org.apache.commons.io.FilenameUtils;
 import org.primefaces.event.FileUploadEvent;
+import org.primefaces.json.JSONString;
 import org.primefaces.model.DefaultStreamedContent;
 import org.primefaces.model.StreamedContent;
 import org.primefaces.model.UploadedFile;
+import org.primefaces.push.impl.JSONEncoder;
 
 import javax.faces.application.FacesMessage;
 import javax.faces.bean.ManagedBean;
 import javax.faces.bean.ViewScoped;
+import javax.faces.context.ExternalContext;
 import javax.faces.context.FacesContext;
+import javax.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -26,10 +32,12 @@ import static j2html.TagCreator.*;
 @ManagedBean(name = "Main")
 @ViewScoped
 public class Main implements Serializable {
+    //private final static long serialVersionUID = 2481426659715684078L;
 
+    private ExternalContext currentContext =  FacesContext.getCurrentInstance().getExternalContext();
     //private final File FOLDER_ROOT = new File("C:\\kptinp");
     //private final File FOLDER_ROOT = new File("/home/KPTFiles");
-    private final File FOLDER_ROOT = new File(Utils.GetPropFromSetting("files_root_folder"));
+    private final File FOLDER_ROOT = new File(Utils.GetPropFromSetting("files_root_folder", currentContext));
     private final File FOLDER_DESTINATION_ROOT = new File(FOLDER_ROOT,"output");
     private final File UPLOAD_FOLDER = new File(FOLDER_ROOT, "input");
     private final File OUTPUT_ZIP_FOLDER = new File(UPLOAD_FOLDER,"!output_zip");
@@ -37,13 +45,6 @@ public class Main implements Serializable {
     private final Boolean REMOVE_OUTPUT_ZIP = false;
 
     public Main() {
-        /*String clientIP = null;
-        HttpServletRequest context = (HttpServletRequest) FacesContext.getCurrentInstance().getExternalContext();
-        clientIP = context.getHeader("X-FORWARDED-FOR");
-        if(clientIP == null){
-            clientIP = context.getRemoteAddr();
-        }
-        System.out.println(clientIP);*/
         if(!UPLOAD_FOLDER.exists()){
             UPLOAD_FOLDER.mkdirs();
         }
@@ -53,6 +54,14 @@ public class Main implements Serializable {
         if(!FOLDER_DESTINATION_ROOT.exists()){
             FOLDER_DESTINATION_ROOT.mkdirs();
         }
+    }
+
+    private String MapContent;
+    public String getMapContent() {
+        return MapContent;
+    }
+    public void setMapContent(String mapContent) {
+        MapContent = mapContent;
     }
 
     private boolean showProtocol = false;
@@ -141,6 +150,7 @@ public class Main implements Serializable {
 
     private void handleFile(UploadedFile file){
         try {
+            setMapContent("");
             String filenameExt = file.getFileName();
             if(!FilenameUtils.isExtension(filenameExt, "zip")){
                 hideProtocol();
@@ -176,21 +186,31 @@ public class Main implements Serializable {
                     }
                 });
 
-                String msgBody = String.format("Успешно преобразованы Файлы: %s <br/> Содержащие кадастровые кварталы: %s",
-                        ul(
-                                each(FilesName, it -> li(it))
-                        ).renderFormatted(),
-                        ul(
-                                each(KadastarsName, it -> li(it))
-                        ).renderFormatted()
-                );
+                //Выполняем определение ip и отправку уведомления в отдельном потоке для уменьшения задержки отображения ответа пользователю
+                currentContext =  FacesContext.getCurrentInstance().getExternalContext();
+                Thread parallel = new Thread(() -> {
+                    InfoIP ip = Utils.GetIPandGeolocation((HttpServletRequest)currentContext.getRequest());
 
-                Utils.SendEMail("КПТ конвертер", msgBody);
+                    String msgBody = String.format("%s <br/>Преобразованы Файлы: %s <br/> Содержащие кадастровые кварталы: %s",
+                            ip.toHtml(),
+                            ul(
+                                    each(FilesName, it -> li(it))
+                            ).renderFormatted(),
+                            ul(
+                                    each(KadastarsName, it -> li(it))
+                            ).renderFormatted()
+                    );
+
+                    Utils.SendEMail("КПТ конвертер", msgBody, currentContext);
+                });
+                parallel.start();
 
                 //Архивация папок со сгенерированными файлами
                 downloadInfoFile = Archiver.CompressFiles(filename, resultInfo.getFilesInfo(), OUTPUT_ZIP_FOLDER, REMOVE_OUTPUT_ZIP);
 
                 //Формирование отображения информации протокола обработки в требуемом формате
+
+                setMapContent(new ObjectMapper().writeValueAsString(resultInfo.getContent()));
                 status = generateProtocol(resultInfo, filenameExt);
 
                 canDownload = true;
@@ -209,9 +229,11 @@ public class Main implements Serializable {
     public void submit(){
         if(file != null) {
             handleFile(file);
-           // sendEMail("Test","Сообщение");
+        }else{
+            FacesMessage msg = new FacesMessage(FacesMessage.SEVERITY_ERROR,"Ошибка обработки! Вы не прикрепили файл", "");
+            FacesContext.getCurrentInstance().addMessage(null, msg);
+            hideProtocol();
         }
-        //compressFiles();
     }
 
     private DownloadFile downloadInfoFile = null;
@@ -265,7 +287,6 @@ public class Main implements Serializable {
                                 iffElse(files.isConverted(),
                                         each(files.getCadastralBlocks(), block ->
                                                 div(text("Найден кадастровый квартал: " + block.getCadastralNumber() + ", содержащий:"),
-                                                        iff(!block.getErrorMsg().isEmpty(), text("Предупреждение: " + block.getErrorMsg())),
                                                         ul(
                                                                 li(String.format("Участков: %d", block.getStatistics().getParcelsCnt())),
                                                                 li(String.format("Участков с геометрией: %d", block.getStatistics().getParcelsWGeoCnt())),
@@ -273,7 +294,8 @@ public class Main implements Serializable {
                                                                 li(String.format("Объектов капитального строительства: %d", block.getStatistics().getObjectsRealitiesCnt())),
                                                                 li(String.format("Объектов капитального строительства с геометрией: %d", block.getStatistics().getObjectsRealitiesWGeoCnt())),
                                                                 li(String.format("Объектов капитального строительства без геометрии: %d", block.getStatistics().getObjectsRealitiesCnt()-block.getStatistics().getObjectsRealitiesWGeoCnt()))
-                                                        )
+                                                        ),
+                                                        iff(!block.getErrorMsg().isEmpty(), text("Предупреждение: " + block.getErrorMsg()))
                                                 )
                                         ),
                                         div("Ошибка: " + files.getErrorMsg())

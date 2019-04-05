@@ -10,6 +10,7 @@ package converter.kpt.kpt;
 
 import converter.kpt.CRSEnum;
 import converter.kpt.exceptions.CustomException;
+import converter.kpt.info.CadastralBlockContent;
 import converter.kpt.info.CadastralBlockInfo;
 import converter.kpt.utils.Dictonary;
 import converter.kpt.utils.FSHelper;
@@ -26,6 +27,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+
 
 
 /**
@@ -1698,7 +1700,7 @@ public class TCadastralBlock {
         return featureCollections;
     }
 
-    public void saveGeoJSON(Path desstination, CadastralBlockInfo cbInfo) throws CustomException {
+    public void saveGeoJSON(Path desstination, CadastralBlockInfo cbInfo, CadastralBlockContent blockContent) throws CustomException {
         this.desstination = desstination;
         this.cbInfo = cbInfo;
         cbInfo.setCadastralNumber(getCadastralNumber());
@@ -1742,16 +1744,24 @@ public class TCadastralBlock {
 
         if (fc != null) {
             fc.addFeature(f);
-            FSHelper.saveTextFile(new File(desstination.toString(), getCadastralNumber().replace(":", "_") + "__CadastralBlock.geojson"), FeatureConverter.toStringValue(fc));
+
+            TCoordSystem entSys = (TCoordSystem)this.getSpatialData().getEntitySpatial().getEntSys();
+            List<TCoordSystem> coordSystems = this.getCoordSystems().getCoordSystem().stream().filter(it -> it.getCsId().equalsIgnoreCase(entSys.getCsId())).collect(Collectors.toList());
+
+            FSHelper.saveTextFile(new File(desstination.toString(), getCadastralNumber().replace(":", "_") + "__Кадастровый_квартал"+
+                    (coordSystems.isEmpty() ? "":"_"+coordSystems.get(0).name) +".geojson"), FeatureConverter.toStringValue(fc));
+
+            //Данные для отображения на карте на сайте
+            blockContent.setLayout(FeatureConverter.toStringValue(fc));
         } else {
             cbInfo.getStatistics().incCadastralBlocksCnt(-1);
         }
 
-        saveParcelsGJ();
-        saveObjectRealityGJ();
+        saveParcelsGJ(blockContent);
+        saveObjectRealityGJ(blockContent);
     }
 
-    private void saveParcelsGJ() throws CustomException {
+    private void saveParcelsGJ(CadastralBlockContent blockContent) throws CustomException {
         Map<TCoordSystem, FeatureCollection> fcs = getFeatureColletions();
 
         for (TParcel parcel :getParcels().getParcel()) {
@@ -1759,12 +1769,20 @@ public class TCadastralBlock {
             Feature feature = new Feature();
             feature.setId(parcel.getCadastralNumber());
 
-            List<List<Position>> rings = new ArrayList<List<Position>>();
+//            List<List<Position>> rings = new ArrayList<List<Position>>();
+            List<List<List<Position>>> counters = new ArrayList<>();
 
             FeatureCollection fc = null;
 
-            if (parcel.getEntitySpatial() != null) {
-                fc = fcs.get(parcel.getEntitySpatial().entSys);
+            List<TEntitySpatialZUOut> allSpatial = new ArrayList<>();
+
+            if(parcel.getContours() != null){
+                for(TContour cntr: parcel.getContours().getContour()){
+                    allSpatial.add(cntr.getEntitySpatial());
+                }
+            }else if (parcel.getEntitySpatial() != null) {
+                allSpatial.add(parcel.getEntitySpatial());
+                /*fc = fcs.get(parcel.getEntitySpatial().entSys);
 
                 for (TSpatialElementZUOut se : parcel.getEntitySpatial().getSpatialElement()) {
                     List<Position> positions = new ArrayList<Position>();
@@ -1774,15 +1792,31 @@ public class TCadastralBlock {
                     rings.add(positions);
                 }
 
-                cbInfo.getStatistics().incParcelsWGeoCnt(1);
+                cbInfo.getStatistics().incParcelsWGeoCnt(1);*/
             } else {
                 fc = fcs.entrySet().iterator().next().getValue();
             }
 
+            for(TEntitySpatialZUOut spatial: allSpatial){
+                fc = fcs.get(spatial.entSys);
+                List<List<Position>> rings = new ArrayList<List<Position>>();
+                for (TSpatialElementZUOut se : spatial.getSpatialElement()) {
+                    List<Position> positions = new ArrayList<Position>();
+                    for (TSpelementUnitZUOut u : se.getSpelementUnit()) {
+                        positions.add(new Position(u.getOrdinate().getY().doubleValue(), u.getOrdinate().getX().doubleValue()));
+                    }
+                    rings.add(positions);
+                }
+                counters.add(rings);
+            }
+            if(!allSpatial.isEmpty()) cbInfo.getStatistics().incParcelsWGeoCnt(1);
 
-            Polygon p = null;
+            //Polygon p = null;
+            MultiPolygon p = new MultiPolygon();
             try {
-                p = new Polygon(rings);
+
+//                p = new Polygon(rings);
+                p = new MultiPolygon(counters);
             } catch (SFException ex) {
                 cbInfo.setErrorMsg(parcel.getCadastralNumber() + " ошибка создания полигона. " + ex.getMessage());
             }
@@ -1819,13 +1853,15 @@ public class TCadastralBlock {
 
         for (Map.Entry<TCoordSystem, FeatureCollection> entry: fcs.entrySet()) {
             if (entry.getValue().getFeatures().size() > 0) {
-                FSHelper.saveTextFile(new File(desstination.toString(), getCadastralNumber().replace(":", "_") + "__Parcels_" +
+                FSHelper.saveTextFile(new File(desstination.toString(), getCadastralNumber().replace(":", "_") + "__Участки_" +
                         entry.getKey().getName() + ".geojson"), FeatureConverter.toStringValue(entry.getValue()));
+
+                blockContent.getParcels().add(FeatureConverter.toStringValue(entry.getValue()));
             }
         }
     }
 
-    private void saveObjectRealityGJ() throws CustomException {
+    private void saveObjectRealityGJ(CadastralBlockContent blockContent) throws CustomException {
         Map<TCoordSystem, FeatureCollection> fcs = getFeatureColletions();
 
         if (getObjectsRealty() != null) {
@@ -1835,23 +1871,31 @@ public class TCadastralBlock {
                 feature.setId(or.getCadastralNumber());
 
                 List<List<Position>> rings = new ArrayList<List<Position>>();
+                List<List<List<Position>>> circles = new ArrayList();
+
 
                 Boolean IsPolygon = true;
                 FeatureCollection fc = null;
                 //FeatureCollection fc = new FeatureCollection();
                 if (or.getEntitySpatial() != null) {
                     fc = fcs.get(or.getEntitySpatial().entSys);
-
+                    circles.clear();
                     for (TSpatialElementOKSOut se : or.getEntitySpatial().getSpatialElement()) {
                         List<Position> positions = new ArrayList<Position>();
                         for (TSpelementUnitOKSOut u : se.getSpelementUnit()) {
-                            positions.add(new Position(u.getOrdinate().getY().doubleValue(), u.getOrdinate().getX().doubleValue()));
+                            if(u.typeUnit == STypeUnit.ОКРУЖНОСТЬ){
+                                circles.add(getCircle(u.getOrdinate().getY().doubleValue(), u.getOrdinate().getX().doubleValue(), u.getR().doubleValue()));
+                            }else {
+                                positions.add(new Position(u.getOrdinate().getY().doubleValue(), u.getOrdinate().getX().doubleValue()));
+                                rings.add(positions);
+                            }
                         }
-                        rings.add(positions);
+//                        rings.add(positions);
                     }
 
                     if(!rings.isEmpty()) {
                         List<Position> tmpPos = rings.get(0);
+                        //Если первая и последня точка не совпадают, то это линия, а не полигон
                         if (!tmpPos.isEmpty() && !tmpPos.get(0).getX().equals(tmpPos.get(tmpPos.size() - 1).getX())
                                 && !tmpPos.get(0).getY().equals(tmpPos.get(tmpPos.size() - 1).getY())) {
                             IsPolygon = false;
@@ -1863,10 +1907,14 @@ public class TCadastralBlock {
                     fc = fcs.entrySet().iterator().next().getValue();
                 }
 
+
                 //Polygon p = null;
                 Geometry p = null;
                 try {
-                    p = IsPolygon ? new Polygon(rings) : new MultiLineString(rings);
+                    p = IsPolygon ?
+                            circles.isEmpty() ?
+                                    new Polygon(rings) : new MultiPolygon(circles)
+                            : new MultiLineString(rings);
                 } catch (SFException ex) {
                     cbInfo.setErrorMsg(or.getCadastralNumber() + " ошибка создания полигона. " + ex.getMessage());
                 }
@@ -1910,14 +1958,14 @@ public class TCadastralBlock {
         for (Map.Entry<TCoordSystem, FeatureCollection> entry: fcs.entrySet()) {
             if (entry.getValue().getFeatures().size() > 0) {
 
-
+                //Выбираем только полигоны и мультиполигоны
                 FeatureCollection Polygons = FeatureConverter.toFeatureCollection(entry.getValue());
                 List<Feature> PolygonFeatures = StreamSupport.stream(entry.getValue().spliterator(), false)
-                        .filter(it -> it.getGeometryType() == GeometryType.POLYGON)
+                        .filter(it -> it.getGeometryType() == GeometryType.POLYGON || it.getGeometryType() == GeometryType.MULTIPOLYGON)
                         .collect(Collectors.toList());
                 Polygons.setFeatures(PolygonFeatures);
 
-
+                //Выбираем только мультилинии
                 FeatureCollection Lines = FeatureConverter.toFeatureCollection(entry.getValue());
                 List<Feature> LinesFeatures = StreamSupport.stream(entry.getValue().spliterator(), false)
                         .filter(it -> it.getGeometryType() == GeometryType.MULTILINESTRING)
@@ -1926,16 +1974,37 @@ public class TCadastralBlock {
 
 
                 if(!Polygons.getFeatures().isEmpty())
-                    FSHelper.saveTextFile(new File(desstination.toString(), getCadastralNumber().replace(":", "_") + "__OKS_Polygon_" +
+                    FSHelper.saveTextFile(new File(desstination.toString(), getCadastralNumber().replace(":", "_") + "__ОКС_Polygon_" +
                             entry.getKey().getName() + ".geojson"), FeatureConverter.toStringValue(Polygons));
 
                 if(!Lines.getFeatures().isEmpty())
-                    FSHelper.saveTextFile(new File(desstination.toString(), getCadastralNumber().replace(":", "_") + "__OKS_Line_" +
+                    FSHelper.saveTextFile(new File(desstination.toString(), getCadastralNumber().replace(":", "_") + "__ОКС_Line_" +
                             entry.getKey().getName() + ".geojson"), FeatureConverter.toStringValue(Lines));
 
-                /*FSHelper.saveTextFile(new File(desstination.toString(), getCadastralNumber().replace(":", "_") + "__OKS_Polygon_" +
-                        entry.getKey().getName() + ".geojson"), FeatureConverter.toStringValue(entry.getValue()));*/
+                blockContent.getOKS().add(FeatureConverter.toStringValue(entry.getValue()));
             }
         }
     }
+
+    /**
+     * Формирует набор точек границы окружности
+     * @param x0 Координа Х центра окружности
+     * @param y0 Координа Y центра окружности
+     * @param radius Радиус окружности
+     * @return
+     */
+    private List<List<Position>> getCircle(double x0, double y0, double radius){
+        double angle = 0;
+        List<Position> points = new ArrayList<>();
+        while(angle < 360){
+            double x = (x0 + radius * Math.cos(Math.toRadians(angle)));
+            double y = (y0 + radius * Math.sin(Math.toRadians(angle)));
+            angle += 6;
+            points.add(new Position(x, y));
+        }
+        List<List<Position>> res = new ArrayList<>();
+        res.add(points);
+        return res;
+    }
+
 }

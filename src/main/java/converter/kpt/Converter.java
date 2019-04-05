@@ -1,6 +1,7 @@
 package converter.kpt;
 
 import converter.kpt.exceptions.CustomException;
+import converter.kpt.info.CadastralBlockContent;
 import converter.kpt.info.CadastralBlockInfo;
 import converter.kpt.info.FileInfo;
 import converter.kpt.info.ResultInfo;
@@ -47,8 +48,9 @@ public class Converter {
 
         for (File f: files) {
             FileInfo fi = new FileInfo(f.getName());
+            CadastralBlockContent blockContent = new CadastralBlockContent();//Данные для отображения на карте на сайте
             try {
-                convertFile(f.getAbsolutePath(), fi);
+                convertFile(f.getAbsolutePath(), fi, blockContent);
                 result.incConvertedFilesCnt(1);
             } catch (CustomException e) {
                 fi.setErrorMsg(e.getMessage());
@@ -56,12 +58,13 @@ public class Converter {
                 result.incErrorFilesCnt(1);
             }
             result.getFilesInfo().add(fi);
+            result.getContent().add(blockContent);
         }
 
         return result;
     }
 
-    private static void convertFile(String kptPath, FileInfo fi) throws CustomException {
+    private static void convertFile(String kptPath, FileInfo fi, CadastralBlockContent blockContent) throws CustomException {
         Unmarshaller unmarshaller = null;
         try {
             JAXBContext jaxbContext = JAXBContext.newInstance(KPT.class);
@@ -79,7 +82,7 @@ public class Converter {
 
         //Цикл по кадастравым кварталам, проверяем кол-во координатных систем
         for(TCadastralBlock cb: kpt.getCadastralBlocks().getCadastralBlock()) {
-            if (cb.getCoordSystems().getCoordSystem().size() == 0) {
+            if (cb.getCoordSystems() == null || cb.getCoordSystems().getCoordSystem().size() == 0) {
                 throw new CustomException("В квартале " + cb.getCadastralNumber() + " не указанна система координат");
             }
         }
@@ -94,7 +97,7 @@ public class Converter {
 
             FSHelper.saveTextFile(new File(destFld.toString(), "sourceKPT.txt"), kptPath);
 
-            cb.saveGeoJSON(destFld, cbInfo);
+            cb.saveGeoJSON(destFld, cbInfo, blockContent);
         }
     }
 }
